@@ -1,0 +1,167 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  DENTIST
+  STAFF
+  PATIENT
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model Clinic {
+  id                 String        @id @default(uuid())
+  name               String
+  slug               String        @unique
+  credits            Int           @default(100) // Créditos de IA para a clínica
+  cnpj               String?
+  address            String?
+  phone              String?
+  whatsapp           String?
+  email              String?
+  logo               String?
+  workingHours       Json?
+  bookingSettings    Json?
+  patientDisplayInfo Json?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  users              User[]
+  dentists           Dentist[]
+  patients           Patient[]
+  services           Service[]
+  appointments       Appointment[]
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  role          Role      @default(PATIENT)
+  clinicId      String?
+  clinic        Clinic?   @relation(fields: [clinicId], references: [id])
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Better Auth relações padrão
+  sessions      Session[]
+  accounts      Account[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  password              String?
+  accessToken           String?
+  refreshToken          String?
+  signedInAt            DateTime?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Dentist {
+  id           String        @id @default(uuid())
+  name         String
+  specialty    String
+  cro          String?
+  phone        String?
+  email        String?
+  photo        String?
+  active       Boolean       @default(true)
+  workingHours Json?
+  clinics      Clinic[]
+  services     Service[]
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  duration    Int
+  price       Float
+  active      Boolean  @default(true)
+  clinicId    String
+  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  dentists    Dentist[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Patient {
+  id             String          @id @default(uuid())
+  name           String
+  email          String?
+  phone          String?
+  clinicId       String
+  clinic         Clinic          @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  transcriptions Transcription[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Appointment {
+  id        String            @id @default(uuid())
+  dateTime  DateTime
+  status    AppointmentStatus @default(PENDING)
+  room      String?
+  clinicId  String
+  clinic    Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  dentistId String
+  dentist   Dentist           @relation(fields: [dentistId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model Transcription {
+  id        String   @id @default(uuid())
+  content   String   // Texto completo transcrito do áudio
+  summary   String?  // Resumo gerado pela IA (Anamnese/Ficha Clínica)
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
